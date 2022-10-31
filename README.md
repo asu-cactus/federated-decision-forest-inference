@@ -7,7 +7,7 @@ First, install `git` and `Miniconda`. Make sure your can run `git` and `conda` c
 ```
 git clone https://github.com/asu-cactus/federated-decision-forest-inference.git
 cd federated-decision-forest-inference
-conda conda env create -f environment.yml
+conda env create -f environment.yml
 ```
 The last command create a new conda environment named "fed" and install the required python packages to run the program. You can run `conda activate fed` to activate this environment.
 Note that `black` is installed to as the python formatter to make it look more delightful to our human eyes. You may need to activate `black` in your IDE.

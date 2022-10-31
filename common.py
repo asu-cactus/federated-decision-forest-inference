@@ -3,9 +3,10 @@ from load_tree import Node
 import pandas as pd
 import numpy as np
 import joblib
+from bitarray import bitarray
 
 
-def generate_bitvector(tree: Node) -> list[list[int]]:
+def generate_bitvector(tree: Node) -> list[bitarray]:
     pass
 
 
