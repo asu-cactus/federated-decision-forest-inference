@@ -5,11 +5,67 @@ import numpy as np
 import joblib
 from bitarray import bitarray
 
+# ------------------------------Algorithm 1 ----------------------------------------
+# get the number of leaf nodes of decision tree
+def leaf(tree: Node):
+    if tree is None:
+        return 0
+    elif tree.left_child is None and tree.right_child is None:
+        return 1
+    else:
+        return leaf(tree.left_child) + leaf(tree.right_child)
 
+
+# True if internal node
+def is_leaf(node):
+    if node.right_child is None and node.left_child is None:
+        return False
+    return True
+
+# create a binary tree
+def Creat_Tree(Root: Node, vals):
+    if len(vals) == 0:
+        return Root
+    if vals[0] != '#':
+        Root = Node(vals[0])
+        vals.pop(0)
+        Root.left_child = Creat_Tree(Root.left_child, vals)
+        Root.right_child = Creat_Tree(Root.right_child, vals)
+        return Root
+    else:
+        Root = None
+        vals.pop(0)
+        return Root
+
+# output the bitvector of internal node
 def generate_bitvector(tree: Node) -> list[bitarray]:
-    pass
+    bit_list = []
+    if tree is None:
+        tree.bitvector = bit_list
+        return tree
+    stack = []
+    tree.left_leaf_node_num = 0
+    stack.append(tree)
+    N = leaf(tree)
+    while len(stack) != 0:
+        node = stack.pop()
+        x = leaf(node.left_child)
+        s = '1' * node.left_leaf_node_num + '0' * x + '1' * (
+                N - node.left_leaf_node_num - x)
+        if is_leaf(node):
+            bit_list.append(s)
+        left_node = node.left_child
+        right_node = node.right_child
+        if right_node is not None:
+            right_node.left_leaf_node_num = node.left_leaf_node_num + x
+            stack.append(right_node)
+        if left_node is not None:
+            left_node.left_leaf_node_num = node.left_leaf_node_num
+            stack.append(left_node)
+    tree.bitvector = bit_list
+    return tree
 
-
+# ----------------------------------------end-----------------------------------------
 def sort_by_feature_threhold(
     feature: pd.DataFrame,
     thresholds: float,
