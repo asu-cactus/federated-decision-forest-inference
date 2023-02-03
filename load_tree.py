@@ -14,17 +14,17 @@ class Node:
         self.left_child = None      #yes
         self.right_child = None     #no
         self.site_name = None
-        self.gain= None
-        self.bitVector=None
+        self.gain = None
+        self.bitVector = None
+        self.is_leaf = False
 
 
 def parse_from_pickle(
-    model_path: Optional[str] = "test_utils/models/higgs_randomforest_10_8.pkl",
+    model_path: Optional[str] = "test_utils/models/higgs_xgboost_10_8.pkl",
 ) -> tuple[list[Node], RandomForestClassifier]:
     sklearn_model = joblib.load(model_path)
-    forest = []
     # TODO: extract trees from sklearn model and store them to forest
-    
+    forest = forestConversion(sklearn_model.get_booster().trees_to_dataframe())
 
     return (forest, sklearn_model)
 
@@ -81,85 +81,98 @@ def createNewNode():
 
 def insertNode(forest: list, treeID, row):
     # print("")
-    temp=len(forest)
-    # check if forest is empty
-    if len(forest)==int(treeID):  # if len of forest is equal to treeID, that tree doesn't exist; create new tree
+    if len(forest)==treeID:  # if len of forest is equal to treeID, that tree doesn't exist; create new tree
         newRoot=createNewNode()
-        newRoot.id = row[3]
-        newRoot.feature_name = row[4]
-        newRoot.threhold = row[5]
-        newRoot.gain=row[9]
+        newRoot.id = row[2]
+        newRoot.feature_name = int(row[3]) - 1
+        newRoot.threhold = float(row[4])
+        newRoot.gain=float(row[8])
+        assert newRoot.threhold is not None
 
         # initialize children as well
         leftNode=Node()
-        leftNode.id=row[6]
+        leftNode.id=row[5]
         rightNode=Node()
-        rightNode.id=row[7]
+        rightNode.id=row[6]
 
         newRoot.left_child=leftNode
         newRoot.right_child=rightNode
 
         # add new root to forest
         forest.append(newRoot)
-    elif forest and row[6] and row[7]:   # forest is not empty and node is not a leaf node (has child/children)
-        newNode=Node()
-        newNode=searchTree(forest[int(treeID)], row[3])
-        newNode.feature_name = row[4]
-        newNode.threhold = row[5]
-        newNode.gain= row[9]
+    elif forest and row[3] != 'Leaf':   # forest is not empty and node is not a leaf node (has child/children)
+        newNode=searchTree(forest[treeID], row[2])
+        newNode.feature_name = int(row[3]) - 1
+        newNode.threhold = float(row[4])
+        newNode.gain= float(row[8])
+        assert newNode.threhold is not None
 
         # initialize children as well
         leftNode = Node()
-        leftNode.id = row[6]
+        leftNode.id = row[5]
         rightNode = Node()
-        rightNode.id = row[7]
+        rightNode.id = row[6]
 
         newNode.left_child = leftNode
         newNode.right_child = rightNode
 
-    elif forest and not row[6] and not row[7]: # accounts for leaf nodes
-        newNode = Node()
-        newNode = searchTree(forest[int(treeID)], row[3])
-        newNode.feature_name = row[4]
-        newNode.threhold = row[5]
-        newNode.gain = row[8]
+    elif forest and row[3] == 'Leaf': # accounts for leaf nodes
+        newNode = searchTree(forest[treeID], row[2])
+        newNode.gain = float(row[8])
+        newNode.is_leaf = True
+    else:
+        print("Something else")
+        raise
 
 
-def forestConversion():
+def forestConversion(model):
     forest = []
-    rootNode = None
     # row 1 is the header for the columns
     # the rows start with row 1, not row 0
     # the columns start with column 0
-    with open('test_utils/models/treeModel (copy).csv') as csvObject:
-        data = csv.reader(csvObject)
-        print("hello world")
-        count = 0
-        treeID=None
-        for row in data:
+    # with open('test_utils/models/treeModel (copy).csv') as csvObject:
+    #     data = csv.reader(csvObject)
+        # print("hello world")
 
-            # skip the header row
-            if count==0:
-                count=count+1
-                continue
-            # append node to tree
-            insertNode(forest,row[1],row)
-            count = count + 1
+    count = 0
+    for _, row in model.iterrows():
+        # # skip the header row
+        # if count==0:
+        #     count=count+1
+        #     continue
+        # append node to tree
+        treeID = row[0]
+        insertNode(forest, treeID ,row)
+        count = count + 1
 
-            # check the end of each tree
-            # treeID=int(row[1])
-            # if (count == ((512*(treeID+1))-treeID)):
-            #     print()
+        # check the end of each tree
 
-        for x in forest:
-            printLevelOrder(x)
-        return forest
+        # if (count == ((512*(treeID+1))-treeID)):
+        #     print()
+
+        # for x in forest:
+        #     printLevelOrder(x)
+    return forest
 
 # --------------------------------------------- conversion ends here  ------------------------------------------
-def test():
-    def tree_traverse_predict(forest: list[Node], feature: pd.DataFrame) -> int:
-        pass
+def tree_traverse_predict(forest: list[Node], feature: np.array) -> int:
+    prediction = 0.0
+    for tree_node in forest:
+        # Each tree makes a prediction
+        while not tree_node.is_leaf:
+            feature_value = feature[tree_node.feature_name]
+            if feature_value < tree_node.threhold:
+                tree_node = tree_node.left_child
+            else:
+                tree_node = tree_node.right_child
+        
+        prediction += tree_node.gain
 
+    # Aggregate predictions
+    return 1 if prediction > 0 else 0
+    # return prediction
+
+def test():
     forest, sklearn_model = parse_from_pickle()
 
     features = pd.read_csv(
@@ -169,14 +182,13 @@ def test():
         header=None,
     )
 
-    for feature in features:
+    for i, feature in features.iterrows():
+        feature = feature.to_numpy()
         prediction1 = tree_traverse_predict(forest, feature)
-        prediction2 = int(sklearn_model.predict())
-        assert (
-            prediction1 == prediction2
-        ), f"Prediction from our implementation is {prediction1} and prediction from sklearn model is {prediction2}"
-
+        prediction2 = int(sklearn_model.predict(np.expand_dims(feature,0)))
+        print(f"Test{i}: Predition1 {prediction1}, Prediction2 {prediction2}")
+        assert prediction1 == prediction2
 
 if __name__ == "__main__":
-    #test()
-    forestConversion()
+    test()
+    # forest = forestConversion()
