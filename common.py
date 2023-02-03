@@ -19,7 +19,27 @@ def sort_by_feature_threhold(
     v: list[list[int]],
     leaves: list[int],
 ) -> int:
-    pass
+    for h in range(0, len(tree_ids)):
+        lenOfLeaves = leaf(tree_ids[h])
+        for y in range(lenOfLeaves):
+            v[h][y] = 1
+    for k in range(len(offsets) - 1):  # step 1
+        i = offsets[k]
+        end = offsets[k + 1]
+        while feature[k] > thresholds[i]:
+            h = tree_ids[i]
+            v[h] = v[h] & bitvectors[i]
+            i = i + 1
+            if i >= end:
+                break
+    score = 0
+    for h in range(0, len(tree_ids) - 1):  # step 2
+        j = 0
+        while v[h][j] == 0:
+            j += 1
+        l = h * len(leaves[h]) + j
+        score = score + leaves[l]
+    return score
 
 
 def quickscorer(forest, feature) -> int:
