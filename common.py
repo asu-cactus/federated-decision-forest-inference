@@ -100,7 +100,12 @@ def sort_by_feature_threhold(
 
 
 def quickscorer(forest, feature) -> int:
-    pass
+    #iterate each tree to calculate bitvector
+    bitVector = []
+    for x in range(0, len(forest)):
+        bitVector.append(generate_bitvector(forest[x]))
+    score = sort_by_feature_threhold()
+    return score
 
 
 def test():
