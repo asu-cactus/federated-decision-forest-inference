@@ -6,6 +6,8 @@ import pandas as pd
 import numpy as np
 import csv
 
+
+
 class Node:
     def __init__(self):
         self.id = None
@@ -16,6 +18,7 @@ class Node:
         self.site_name = None
         self.gain= None
         self.bitVector=None
+        self.left_leaf_node_num=None         #number of leaf nodes in this tree/subtree
 
 
 def parse_from_pickle(
@@ -31,6 +34,109 @@ def parse_from_pickle(
 
 def load_from_protobuf():
     pass
+#---------new mapping variables/structure-------------------------------------------
+
+
+# creation of array
+listOfFeatures = []
+
+
+# add map to track vectors
+featureMap={}               # [(feature, tree), index]
+#indexMap={}                 # [tree, index]
+
+def insertToMap(node:Node, treeID):
+    index=0
+    greater=False
+    breakFlag1=False
+    # Add a new feature if the list is empty
+    if(len(listOfFeatures)==0):
+
+        # add new feature
+        newFeatureList=[]
+        newFeatureList.append(node)
+
+        # add new list to feature list
+        listOfFeatures.append(newFeatureList)
+
+        # add feature and tree to maps
+        featureMap[node.feature_name, treeID]= index
+        print("")
+
+        return
+
+    #if tree is not empty
+    for i in range(len(listOfFeatures)):
+
+        # check if feature is part of the list
+        if node.feature_name == listOfFeatures[i][0].feature_name:
+
+
+            # check if any other nodes from current tree have been put in the relevant feature array
+            if((node.feature_name, treeID) in featureMap):
+
+                # if true, check map for index of current tree
+                tempIndex=featureMap[(node.feature_name, treeID)]
+
+                # insert node in appropriate place
+                while node.threhold > listOfFeatures[i][tempIndex].threhold and breakFlag1==False:
+
+                    greater=True    # current node threshold is greater than indexed threshold
+
+                    if (tempIndex+1 ==len(listOfFeatures[i])):
+                        breakFlag1=True
+                    else:
+                        tempIndex = tempIndex + 1
+
+
+                    print(" ")
+
+                # if node is smaller, node needs to be inserted before first instance of this tree's nodes
+                if(greater==False):
+                    listOfFeatures[i].insert(tempIndex, node)
+
+                    # update map
+                    featureMap[node.feature_name, treeID] = tempIndex
+                    print("")
+                else:
+                    #avoid ArrayOutOfBounds
+                    if(tempIndex+1== len(listOfFeatures[i]) and breakFlag1==True):
+                        listOfFeatures[i].append(node)
+                    else:
+                        listOfFeatures[i].insert(tempIndex, node)
+
+            # if no prior tree nodes, append node to end of current feature list
+            else:
+                listOfFeatures[i].append(node)
+
+                #update map
+                featureMap[node.feature_name, treeID]=len(listOfFeatures[i])-1
+                print("")
+
+            return
+
+
+
+    # add new feature
+    newFeatureList = []
+    newFeatureList.append(node)
+
+    # add feature and tree to maps
+    featureMap[node.feature_name, treeID] = index
+    print("")
+
+    # add new list to feature list
+    listOfFeatures.append(newFeatureList)
+
+
+    print(" ")
+
+
+
+
+
+#---------------------------mapping ends here---------------------------------------
+
 # --------------------------------------- converting to forest from csv-----------------------------------------------
 # ------- print tree -------------
 # simply used for verifying that all cells were used
@@ -99,8 +205,14 @@ def insertNode(forest: list, treeID, row):
         newRoot.left_child=leftNode
         newRoot.right_child=rightNode
 
+
         # add new root to forest
         forest.append(newRoot)
+
+        #new code 2/15/23
+        insertToMap(newRoot, treeID)
+
+
     elif forest and row[6] and row[7]:   # forest is not empty and node is not a leaf node (has child/children)
         newNode=Node()
         newNode=searchTree(forest[int(treeID)], row[3])
@@ -117,12 +229,18 @@ def insertNode(forest: list, treeID, row):
         newNode.left_child = leftNode
         newNode.right_child = rightNode
 
+        # new code 2/15/23
+        insertToMap(newNode, treeID)
+
     elif forest and not row[6] and not row[7]: # accounts for leaf nodes
         newNode = Node()
         newNode = searchTree(forest[int(treeID)], row[3])
         newNode.feature_name = row[4]
         newNode.threhold = row[5]
         newNode.gain = row[8]
+
+        # new code 2/15/23
+        insertToMap(newNode, treeID)
 
 
 def forestConversion():
@@ -179,4 +297,41 @@ def test():
 
 if __name__ == "__main__":
     #test()
-    forestConversion()
+    forest=forestConversion()
+    # create test nodes
+
+    # node1 = Node()
+    # node1.feature_name = "f1"
+    # node1.threhold=25
+    #
+    # node2 = Node()
+    # node2.feature_name = "f2"
+    # node2.threhold=20
+    #
+    # node3=Node()
+    # node3.feature_name="f1"
+    # node3.threhold=27
+    #
+    # node4 = Node()
+    # node4.feature_name = "f1"
+    # node4.threhold = 24
+    #
+    # node5= Node()
+    # node5.feature_name="f1"
+    # node5.threhold=26
+    #
+    # #check that node can be inserted into empty array
+    # insertToMap(node1, 1)
+    #
+    # #check that node can be inserted into new row
+    # insertToMap(node2, 2)
+    #
+    # #check that node can be appended to end of existing row
+    # insertToMap(node3, 1)
+    #
+    # #check that map can be properly updated
+    # insertToMap(node4, 1)
+    #
+    # #check that node is properly inserted
+    # insertToMap(node5, 1)
+    print("")

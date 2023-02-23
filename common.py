@@ -5,8 +5,7 @@ import numpy as np
 import joblib
 from bitarray import bitarray
 
-# new Imports I (Angel) added
-from load_tree import forestConversion
+
 
 # ------------------------------Algorithm 1 ----------------------------------------
 # get the number of leaf nodes of decision tree
@@ -71,15 +70,37 @@ def generate_bitvector(tree: Node) -> list[bitarray]:
 
 # ----------------------------------------end-----------------------------------------
 def sort_by_feature_threhold(
-    feature: pd.DataFrame,
-    thresholds: float,
-    tree_ids: int,
-    bitvectors: list[list[int]],
-    offsets: list[int],
-    v: list[list[int]],
-    leaves: list[int],
+    feature: pd.DataFrame,              # ?
+    thresholds: float,                  # threshold to be sorted
+    tree_ids: int,                      # Tree ID in the forest
+    bitvectors: list[list[int]],        # bitvector for the tree
+    offsets: list[int],                 # ?
+    v: list[list[int]],                 # ?
+    leaves: list[int],                  # ?
 ) -> int:
-    pass
+
+    #h is just a counter (like i=0)
+    for h in range(0, len(tree_ids)):
+        lenOfLeaves = leaves(tree_ids[h])
+        for y in range(lenOfLeaves):
+            v[h][y] = 1
+    for k in range(len(offsets) - 1):#step 1
+        i = offsets[k]
+        end = offsets[k + 1]
+        while feature[k] > thresholds[i]:
+            h = tree_ids[i]
+            v[h] = v[h] & bitvectors[i]
+            i = i + 1
+            if i >= end:
+                break
+    score = 0
+    for h in range(0, len(tree_ids) - 1):# step 2
+        j = 0
+        while v[h][j] == 0:
+            j += 1
+            l = h * len(leaves[h]) + j
+            score = score + leaves[l]
+    return score
 
 
 def quickscorer(forest, feature) -> int:
@@ -110,15 +131,8 @@ def test():
 
 
 if __name__ == "__main__":
-    #test()
+    test()
     # create the tree and store it
-    myTree=forestConversion()
-
-    # create the bitvector and store it
-    i=0
-    myBitVector=[]
-    while i < len(myTree):
-        myBitVector = generate_bitvector(myTree[i])
+    #myTree=forestConversion()
 
 
-    myBitVector
