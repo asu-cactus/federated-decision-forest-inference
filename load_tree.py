@@ -5,6 +5,8 @@ from sklearn.ensemble import RandomForestClassifier
 import pandas as pd
 import numpy as np
 import csv
+from pathlib import Path
+from typing import TypeAlias
 
 class Node:
     def __init__(self):
@@ -18,14 +20,25 @@ class Node:
         self.bitVector = None
         self.is_leaf = False
 
+Forest: TypeAlias = list[Node]
 
 def parse_from_pickle(
-    model_path: Optional[str] = "test_utils/models/higgs_xgboost_10_8.pkl",
-) -> tuple[list[Node], RandomForestClassifier]:
-    sklearn_model = joblib.load(model_path)
-    # TODO: extract trees from sklearn model and store them to forest
-    forest = forestConversion(sklearn_model.get_booster().trees_to_dataframe())
+    model_name: Optional[str] = "higgs_xgboost_10_8",
+) -> tuple[Forest, RandomForestClassifier]:
+    # Get Sklearn model
+    model_dir = 'test_utils/models'
+    pkl_path = f'{model_dir}/{model_name}.pkl'
+    sklearn_model = joblib.load(pkl_path)
 
+    # Get our own representation
+    csv_path = f'{model_dir}/{model_name}.csv'
+    if Path(csv_path).is_file():
+        forest = forestConversion(pd.read_csv(csv_path))
+    else:
+        model_df = sklearn_model.get_booster().trees_to_dataframe()
+        model_df.to_csv(csv_path)
+        forest = forestConversion(model_df)
+    
     return (forest, sklearn_model)
 
 
