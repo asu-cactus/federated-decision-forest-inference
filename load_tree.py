@@ -7,27 +7,21 @@ import numpy as np
 import csv
 
 
-
 class Node:
     def __init__(self):
         self.id = None
-        self.feature_name = None    #feature number
-        self.threhold = None        #split
-        self.left_child = None      #yes
-        self.right_child = None     #no
+        self.feature_name = None  # feature number
+        self.threhold = None  # split
+        self.left_child = None  # yes
+        self.right_child = None  # no
         self.site_name = None
-        self.gain= None
-        self.bitVector=None
-        self.left_leaf_node_num=None         #number of leaf nodes in this tree/subtree
-
         self.gain = None
         self.bitVector = None
         self.is_leaf = False
 
 
-
 def parse_from_pickle(
-    model_path: Optional[str] = "test_utils/models/higgs_xgboost_10_8.pkl",
+        model_path: Optional[str] = "test_utils/models/higgs_xgboost_10_8.pkl",
 ) -> tuple[list[Node], RandomForestClassifier]:
     sklearn_model = joblib.load(model_path)
     # TODO: extract trees from sklearn model and store them to forest
@@ -38,6 +32,7 @@ def parse_from_pickle(
 
 def load_from_protobuf():
     pass
+
 #---------new mapping variables/structure-------------------------------------------
 
 
@@ -82,38 +77,42 @@ def insertToMap(node:Node, treeID):
                 # if true, check map for index of current tree
                 tempIndex=featureMap[(node.feature_name, treeID)]
 
-                # insert node in appropriate place
-                while node.threhold > listOfFeatures[i][tempIndex].threhold and breakFlag1==False:
+                if node.is_leaf != True:
+                    # insert node in appropriate place
+                    while node.threhold > listOfFeatures[i][tempIndex].threhold and breakFlag1==False:
 
-                    greater=True    # current node threshold is greater than indexed threshold
-
-                    if (tempIndex+1 ==len(listOfFeatures[i])):
-                        breakFlag1=True
-                    else:
-                        tempIndex = tempIndex + 1
+                        greater=True    # current node threshold is greater than indexed threshold
 
 
-                    print(" ")
+                        if (tempIndex+1 ==len(listOfFeatures[i])):
+                            breakFlag1=True
+                        else:
+                            tempIndex = tempIndex + 1
 
-                # if node is smaller, node needs to be inserted before first instance of this tree's nodes
-                if(greater==False):
-                    listOfFeatures[i].insert(tempIndex, node)
 
-                    # update map
-                    featureMap[node.feature_name, treeID] = tempIndex
-                    print("")
-                else:
-                    #avoid ArrayOutOfBounds
-                    if(tempIndex+1== len(listOfFeatures[i]) and breakFlag1==True):
-                        listOfFeatures[i].append(node)
-                    else:
+                        print(" ")
+
+                    # if node is smaller, node needs to be inserted before first instance of this tree's nodes
+                    if(greater==False):
                         listOfFeatures[i].insert(tempIndex, node)
+
+                        # update map
+                        featureMap[node.feature_name, treeID] = tempIndex
+                        print("")
+                    else:
+                        # avoid ArrayOutOfBounds
+                        if(tempIndex+1== len(listOfFeatures[i]) and breakFlag1==True):
+                            listOfFeatures[i].append(node)
+                        else:
+                            listOfFeatures[i].insert(tempIndex, node)
+
+
 
             # if no prior tree nodes, append node to end of current feature list
             else:
                 listOfFeatures[i].append(node)
 
-                #update map
+                # update map
                 featureMap[node.feature_name, treeID]=len(listOfFeatures[i])-1
                 print("")
 
@@ -139,98 +138,95 @@ def insertToMap(node:Node, treeID):
 
 
 
-#---------------------------mapping ends here---------------------------------------
+# ---------------------------mapping ends here---------------------------------------
 
 # --------------------------------------- converting to forest from csv-----------------------------------------------
 # ------- print tree -------------
 # simply used for verifying that all cells were used
 # print methods accreddited to this source https://www.geeksforgeeks.org/level-order-tree-traversal/
-def printLevelOrder(root:Node):
-    h= height(root)
-    for i in range(1,h+1):
-        printCurrentLevel(root,i)
-def printCurrentLevel(root:Node, level):
+def printLevelOrder(root: Node):
+    h = height(root)
+    for i in range(1, h + 1):
+        printCurrentLevel(root, i)
+
+
+def printCurrentLevel(root: Node, level):
     if root is None:
         return
-    if level==1:
-        print("node id: "+root.id+ "\t feature name: " + root.feature_name + "\t\tthreshold: " + root.threhold +"\t\tgain: "
-              +root.gain)
-    elif level>1:
-        printCurrentLevel(root.left_child, level-1)
-        printCurrentLevel(root.right_child, level-1)
-def height(node:Node):
+    if level == 1:
+        print(
+            "node id: " + root.id + "\t feature name: " + root.feature_name + "\t\tthreshold: " + root.threhold + "\t\tgain: "
+            + root.gain)
+    elif level > 1:
+        printCurrentLevel(root.left_child, level - 1)
+        printCurrentLevel(root.right_child, level - 1)
+
+
+def height(node: Node):
     if node is None:
         return 0
     else:
-        lheight=height(node.left_child)
-        rheight=height(node.right_child)
+        lheight = height(node.left_child)
+        rheight = height(node.right_child)
 
-        if lheight>rheight:
-            return lheight+1
+        if lheight > rheight:
+            return lheight + 1
         else:
-            return rheight+1
+            return rheight + 1
+
 
 # ----------- build tree
-def searchTree(root:Node, nodeId)->Node:
-    tempNode=Node
-    tempNode2=Node
-    if root is None or root.id==nodeId:
+def searchTree(root: Node, nodeId) -> Node:
+    tempNode = Node
+    tempNode2 = Node
+    if root is None or root.id == nodeId:
         return root
-    tempNode=searchTree(root.left_child, nodeId)
+    tempNode = searchTree(root.left_child, nodeId)
     # print()
-    tempNode2=searchTree(root.right_child, nodeId)
+    tempNode2 = searchTree(root.right_child, nodeId)
     # print()
     if tempNode is not None:
         return tempNode
     elif tempNode2 is not None:
         return tempNode2
 
+
 def createNewNode():
-    newNode=Node()
+    newNode = Node()
     return newNode
+
 
 def insertNode(forest: list, treeID, row):
     # print("")
-    if len(forest)==treeID:  # if len of forest is equal to treeID, that tree doesn't exist; create new tree
-        newRoot=createNewNode()
+    if len(forest) == treeID:  # if len of forest is equal to treeID, that tree doesn't exist; create new tree
+        newRoot = createNewNode()
         newRoot.id = row[2]
         newRoot.feature_name = int(row[3]) - 1
         newRoot.threhold = float(row[4])
-        newRoot.gain=float(row[8])
+        newRoot.gain = float(row[8])
         assert newRoot.threhold is not None
 
         # initialize children as well
-        leftNode=Node()
-        leftNode.id=row[5]
-        rightNode=Node()
-        rightNode.id=row[6]
+        leftNode = Node()
+        leftNode.id = row[5]
+        rightNode = Node()
+        rightNode.id = row[6]
 
-        newRoot.left_child=leftNode
-        newRoot.right_child=rightNode
-
+        newRoot.left_child = leftNode
+        newRoot.right_child = rightNode
 
         # add new root to forest
         forest.append(newRoot)
 
-
-        #new code 2/15/23
+        #create feature vector
         insertToMap(newRoot, treeID)
 
-
-    elif forest and row[6] and row[7]:   # forest is not empty and node is not a leaf node (has child/children)
-        newNode=Node()
-        newNode=searchTree(forest[int(treeID)], row[3])
-        newNode.feature_name = row[4]
-        newNode.threhold = row[5]
-        newNode.gain= row[9]
-
-    elif forest and row[3] != 'Leaf':   # forest is not empty and node is not a leaf node (has child/children)
-        newNode=searchTree(forest[treeID], row[2])
+    elif forest and row[3] != 'Leaf':  # forest is not empty and node is not a leaf node (has child/children)
+        newNode = searchTree(forest[treeID], row[2])
         newNode.feature_name = int(row[3]) - 1
         newNode.threhold = float(row[4])
-        newNode.gain= float(row[8])
+        newNode.gain = float(row[8])
         assert newNode.threhold is not None
-
 
         # initialize children as well
         leftNode = Node()
@@ -241,28 +237,20 @@ def insertNode(forest: list, treeID, row):
         newNode.left_child = leftNode
         newNode.right_child = rightNode
 
-
-        # new code 2/15/23
+        # create feature vector
         insertToMap(newNode, treeID)
 
-    elif forest and not row[6] and not row[7]: # accounts for leaf nodes
-        newNode = Node()
-        newNode = searchTree(forest[int(treeID)], row[3])
-        newNode.feature_name = row[4]
-        newNode.threhold = row[5]
-        newNode.gain = row[8]
-
-    elif forest and row[3] == 'Leaf': # accounts for leaf nodes
+    elif forest and row[3] == 'Leaf':  # accounts for leaf nodes
         newNode = searchTree(forest[treeID], row[2])
         newNode.gain = float(row[8])
         newNode.is_leaf = True
+
+        # create feature vector
+        insertToMap(newNode, treeID)
     else:
         print("Something else")
         raise
 
-
-        # new code 2/15/23
-        insertToMap(newNode, treeID)
 
 
 def forestConversion(model):
@@ -270,34 +258,9 @@ def forestConversion(model):
     # row 1 is the header for the columns
     # the rows start with row 1, not row 0
     # the columns start with column 0
-
-    with open('test_utils/models/treeModel (copy).csv') as csvObject:
-        data = csv.reader(csvObject)
-        print("hello world")
-        count = 0
-        treeID=None
-        for row in data:
-
-            # skip the header row
-            if count==0:
-                count=count+1
-                continue
-            # append node to tree
-            insertNode(forest,row[1],row)
-            count = count + 1
-
-            # check the end of each tree
-            # treeID=int(row[1])
-            # if (count == ((512*(treeID+1))-treeID)):
-            #     print()
-
-        # for x in forest:
-        #     printLevelOrder(x)
-        return forest
-
     # with open('test_utils/models/treeModel (copy).csv') as csvObject:
     #     data = csv.reader(csvObject)
-        # print("hello world")
+    # print("hello world")
 
     count = 0
     for _, row in model.iterrows():
@@ -307,7 +270,7 @@ def forestConversion(model):
         #     continue
         # append node to tree
         treeID = row[0]
-        insertNode(forest, treeID ,row)
+        insertNode(forest, treeID, row)
         count = count + 1
 
         # check the end of each tree
@@ -331,16 +294,18 @@ def tree_traverse_predict(forest: list[Node], feature: np.array) -> int:
                 tree_node = tree_node.left_child
             else:
                 tree_node = tree_node.right_child
-        
+
         prediction += tree_node.gain
 
     # Aggregate predictions
     return 1 if prediction > 0 else 0
     # return prediction
 
+
 def test():
     forest, sklearn_model = parse_from_pickle()
-
+    # test code
+    testforest=sklearn_model
     features = pd.read_csv(
         "test_utils/test_data/test_samples.csv",
         dtype=np.float32,
@@ -351,52 +316,14 @@ def test():
     for i, feature in features.iterrows():
         feature = feature.to_numpy()
         prediction1 = tree_traverse_predict(forest, feature)
-        prediction2 = int(sklearn_model.predict(np.expand_dims(feature,0)))
+        prediction2 = int(sklearn_model.predict(np.expand_dims(feature, 0)))
         print(f"Test{i}: Predition1 {prediction1}, Prediction2 {prediction2}")
         assert prediction1 == prediction2
 
+
+testforest=[]
+
 if __name__ == "__main__":
-
-    #test()
-    forest=forestConversion()
-    # create test nodes
-
-    # node1 = Node()
-    # node1.feature_name = "f1"
-    # node1.threhold=25
-    #
-    # node2 = Node()
-    # node2.feature_name = "f2"
-    # node2.threhold=20
-    #
-    # node3=Node()
-    # node3.feature_name="f1"
-    # node3.threhold=27
-    #
-    # node4 = Node()
-    # node4.feature_name = "f1"
-    # node4.threhold = 24
-    #
-    # node5= Node()
-    # node5.feature_name="f1"
-    # node5.threhold=26
-    #
-    # #check that node can be inserted into empty array
-    # insertToMap(node1, 1)
-    #
-    # #check that node can be inserted into new row
-    # insertToMap(node2, 2)
-    #
-    # #check that node can be appended to end of existing row
-    # insertToMap(node3, 1)
-    #
-    # #check that map can be properly updated
-    # insertToMap(node4, 1)
-    #
-    # #check that node is properly inserted
-    # insertToMap(node5, 1)
-    print("")
-
     test()
-    # forest = forestConversion()
-
+    testforest
+    print("done")
