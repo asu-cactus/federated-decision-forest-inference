@@ -4,7 +4,6 @@ import joblib
 from sklearn.ensemble import RandomForestClassifier
 import pandas as pd
 import numpy as np
-import csv
 from pathlib import Path
 from typing import TypeAlias
 
@@ -36,7 +35,7 @@ def parse_from_pickle(
         forest = forestConversion(pd.read_csv(csv_path))
     else:
         model_df = sklearn_model.get_booster().trees_to_dataframe()
-        model_df.to_csv(csv_path)
+        model_df.to_csv(csv_path, index=False)
         forest = forestConversion(model_df)
     
     return (forest, sklearn_model)
