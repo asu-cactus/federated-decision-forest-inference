@@ -78,13 +78,5 @@ def federated_inference():
 
 
 if __name__ == "__main__":
-    test_times = 20
-    
-    join_and_inference_time = 0.0
-    federated_inference_time = 0.0
-    for i in range(test_times):
-        join_and_inference_time += join_and_inference()
-        federated_inference_time += federated_inference()
-        
-    print(f'average join_and_inference_time: {join_and_inference_time / test_times: .2f}')
-    print(f'average federated_inference_time: {federated_inference_time / test_times: .2f}')
+    join_and_inference()
+    federated_inference()
