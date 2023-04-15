@@ -11,13 +11,14 @@ class Node:
     def __init__(self):
         self.id = None
         self.feature_name = None    #feature number
-        self.threhold = None        #split
+        self.threshold = None        #split
         self.left_child = None      #yes
         self.right_child = None     #no
         self.site_name = None
         self.gain = None
         self.bitVector = None
         self.is_leaf = False
+        self.leaf_count = None
 
 Forest: TypeAlias = list[Node]
 
@@ -55,7 +56,7 @@ def printCurrentLevel(root:Node, level):
     if root is None:
         return
     if level==1:
-        print("node id: "+root.id+ "\t feature name: " + root.feature_name + "\t\tthreshold: " + root.threhold +"\t\tgain: "
+        print("node id: "+root.id+ "\t feature name: " + root.feature_name + "\t\tthreshold: " + root.threshold +"\t\tgain: "
               +root.gain)
     elif level>1:
         printCurrentLevel(root.left_child, level-1)
@@ -97,9 +98,9 @@ def insertNode(forest: list, treeID, row):
         newRoot=createNewNode()
         newRoot.id = row[2]
         newRoot.feature_name = int(row[3]) - 1
-        newRoot.threhold = float(row[4])
+        newRoot.threshold = float(row[4])
         newRoot.gain=float(row[8])
-        assert newRoot.threhold is not None
+        assert newRoot.threshold is not None
 
         # initialize children as well
         leftNode=Node()
@@ -115,9 +116,9 @@ def insertNode(forest: list, treeID, row):
     elif forest and row[3] != 'Leaf':   # forest is not empty and node is not a leaf node (has child/children)
         newNode=searchTree(forest[treeID], row[2])
         newNode.feature_name = int(row[3]) - 1
-        newNode.threhold = float(row[4])
+        newNode.threshold = float(row[4])
         newNode.gain= float(row[8])
-        assert newNode.threhold is not None
+        assert newNode.threshold is not None
 
         # initialize children as well
         leftNode = Node()
@@ -173,7 +174,7 @@ def tree_traverse_predict(forest: list[Node], feature: np.array) -> int:
         # Each tree makes a prediction
         while not tree_node.is_leaf:
             feature_value = feature[tree_node.feature_name]
-            if feature_value < tree_node.threhold:
+            if feature_value < tree_node.threshold:
                 tree_node = tree_node.left_child
             else:
                 tree_node = tree_node.right_child
