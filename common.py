@@ -8,13 +8,12 @@ from dataclasses import dataclass
 class BitvectorNode:
     feature_name: int
     threshold: float
-    bitvector : bitarray
+    bitvector: bitarray
 
 @dataclass
 class BitvectorTree:
     nodes : list[BitvectorNode]
     output_values: list[int]
-
 
 # get the number of leaf node
 # def leaf(tree: Node):
@@ -142,8 +141,8 @@ def quickscorer_without_sorting(bitvector_trees, features) -> int:
 def get_forest_model():
     forest, _ = parse_from_pickle() 
     bitvector_trees = []
-    for node in forest:
-        bitvector_trees.append(generate_BitvectorTree(node)) 
+    for tree_root in forest:
+        bitvector_trees.append(generate_BitvectorTree(tree_root)) 
     return bitvector_trees
 
 # test the bitvector
