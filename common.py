@@ -1,82 +1,72 @@
-from load_tree import Node, parse_from_pickle
+from load_tree import Node
+
 import pandas as pd
 import numpy as np
+import joblib
 from bitarray import bitarray
-from dataclasses import dataclass
-
-@dataclass
-class BitvectorNode:
-    feature_name: int
-    threshold: float
-    bitvector: bitarray
-
-@dataclass
-class BitvectorTree:
-    nodes : list[BitvectorNode]
-    output_values: list[int]
-
-# get the number of leaf node
-# def leaf(tree: Node):
-#     if tree is None:
-#         return 0
-#     elif tree.left_child is None and tree.right_child is None:
-#         return 1
-#     else:
-#         return leaf(tree.left_child) + leaf(tree.right_child)
+def leaf(tree: Node):
+    if tree is None:
+        return 0
+    elif tree.left_child is None and tree.right_child is None:
+        return 1
+    else:
+        return leaf(tree.left_child) + leaf(tree.right_child)
 
 
-# # True if not leaf node
-# def is_leaf(node):
-#     if node.right_child is None and node.left_child is None:
-#         return False
-#     return True
+# True if internal node
+def is_leaf(node):
+    if node.right_child is None and node.left_child is None:
+        return False
+    return True
+
+# create a binary tree
+def Creat_Tree(Root: Node, vals):
+    if len(vals) == 0:
+        return Root
+    if vals[0] != '#':
+        Root = Node(vals[0])
+        vals.pop(0)
+        Root.left_child = Creat_Tree(Root.left_child, vals)
+        Root.right_child = Creat_Tree(Root.right_child, vals)
+        return Root
+    else:
+        Root = None
+        vals.pop(0)
+        return Root
+
+# output the bitvector of internal node
+def generate_bitvector(tree: Node) -> list[bitarray]:
+    bit_list = []
+    if tree is None:
+        tree.bitvector = bit_list
+        return tree
+    stack = []
+    tree.left_leaf_node_num = 0
+    stack.append(tree)
+    N = leaf(tree)
+    while len(stack) != 0:
+        node = stack.pop()
+        x = leaf(node.left_child)
+        s = '1' * node.left_leaf_node_num + '0' * x + '1' * (
+                N - node.left_leaf_node_num - x)
+        if is_leaf(node):
+            bit_list.append(s)
+        left_node = node.left_child
+        right_node = node.right_child
+        if right_node is not None:
+            right_node.left_leaf_node_num = node.left_leaf_node_num + x
+            stack.append(right_node)
+        if left_node is not None:
+            left_node.left_leaf_node_num = node.left_leaf_node_num
+            stack.append(left_node)
+    tree.bitvector = bit_list
+    return tree
+
+def generate_bitvector(tree: Node) -> list[bitarray]:
+    pass
 
 
-# generate the bitvector
-def generate_BitvectorTree(tree_root: Node) -> BitvectorTree:
-    if tree_root is None:
-        raise ValueError('Tree is None')
-
-    bitvectors = []
-    output_values = []
-    
-    get_leaf_count_and_output_values(tree_root, output_values)
-    generate_bitvector_helper(tree_root, 0, tree_root.leaf_count, bitvectors)
-    return BitvectorTree(bitvectors, output_values)
-
-
-def get_leaf_count_and_output_values(node, output_values):
-    if node.left_child is None and node.right_child is None:
-        output_values.append(node.gain)
-        node.leaf_count = 1
-        return
-
-    if node.left_child:
-        get_leaf_count_and_output_values(node.left_child, output_values)
-        
-    if node.right_child:
-        get_leaf_count_and_output_values(node.right_child, output_values)
-
-    node.leaf_count = node.left_child.leaf_count + node.right_child.leaf_count
-
-
-def generate_bitvector_helper(node, begin, length, bitvectors):
-    if node.left_child:
-        generate_bitvector_helper(node.left_child, begin, length, bitvectors)
-    if node.right_child:
-        N = node.left_child.leaf_count if node.left_child else 0
-        generate_bitvector_helper(node.right_child, begin + N, length, bitvectors)
-    
-    if node.left_child or node.right_child:
-        bitvector = bitarray('1' * begin + '0' * N + '1' * (length - begin - N))
-        # assert len(bitvector) == length, f'{begin}, {N}, {length}'
-        bitvectors.append(BitvectorNode(
-            node.feature_name,
-            node.threshold,
-            bitvector
-        ))
-
-def sort_by_feature_threshold(
+def sort_by_feature_threhold(
     feature: pd.DataFrame,
     thresholds: float,
     tree_ids: int,
@@ -85,87 +75,61 @@ def sort_by_feature_threshold(
     v: list[list[int]],
     leaves: list[int],
 ) -> int:
-    pass
-def quickscorer(forest, feature) -> int:
-    pass
-
-# get prediction
-def bit_prediction(node, bit_array):
-    prediction = 0.0
-    i = 0
-    if node is None:
-        return 0.0
-    stack = []
-    stack.append(node)
-    while len(stack) != 0:
-        node = stack.pop()
-        if node.left_child is None and node.right_child is None:
-            if int(bit_array[i]) == 1:
-                prediction += node.gain
-                return prediction
+    lenOfTree = len(v)
+    lenOfLeave = len(leaves) // len(v) #length of one leaf
+    for h in range(0, lenOfTree):
+        for y in range(0, lenOfLeave):
+            v[h][y] = 1
+    for k in range(len(offsets) - 1):  #step 1
+        i = offsets[k]
+        end = offsets[k + 1]
+        while feature[k] > thresholds[i]: #if TRUE, update bitvectors
+            h = tree_ids[i]
+            v[h] = v[h] & bitvectors[i]
             i = i + 1
-        left_node = node.left_child
-        right_node = node.right_child
-        if right_node is not None:
-            stack.append(right_node)
-        if left_node is not None:
-            stack.append(left_node)
-    return prediction
+            if i >= end:
+                break
+    score = 0
+    for h in range(0, lenOfTree - 1):  # step 2
+        j = 0
+        while v[h][j] == 0: #find the position of first 1's
+            j += 1
+        l = h * lenOfLeave + j
+        score = score + leaves[l]
+    return score
 
 
-def aggregate_vectors(tree: BitvectorTree, features: list[float], offset: int = 0):
-    and_vector = bitarray('1' * len(tree.nodes[0].bitvector))
-    for node in tree.nodes:
-        if 0 <= (index := node.feature_name - offset) < len(features):
-            if features[index] > node.threshold:
-                and_vector &= node.bitvector
-    return and_vector
+def quickscorer(forest, feature) -> int:
+    #iterate each tree to calculate bitvector
+    bitVector = []
+    for x in range(0, len(forest)):
+        bitVector.append(generate_bitvector(forest[x]))
+    score = sort_by_feature_threhold()
+    return score
 
-def tree_prediction(tree: BitvectorTree, features: list[float]) -> float:
-    and_vector = aggregate_vectors(tree, features)
-    for i, bit in enumerate(and_vector):
-        if bit == 1:
-            return tree.output_values[i]
 
-def quickscorer_without_sorting(bitvector_trees, features) -> int:
-    prediction = 0.0
+def test():
+    def get_test_model():
+        sklearn_model = joblib.load("test_utils/models/higgs_randomforest_10_8_1.pkl")
+        forest = None
+        return (forest, sklearn_model)
 
-    for tree in bitvector_trees:
-        prediction += tree_prediction(tree, features)
-        # false_list = Find_false(node, feature)
-        # bit_array = And(false_list)
-        # prediction = bit_prediction(node, bit_array) + prediction
-
-    return 1 if prediction > 0 else 0
-
-def get_forest_model():
-    forest, _ = parse_from_pickle() 
-    bitvector_trees = []
-    for tree_root in forest:
-        bitvector_trees.append(generate_BitvectorTree(tree_root)) 
-    return bitvector_trees
-
-# test the bitvector
-def bit_test():
+    forest, sklearn_model = get_test_model()
 
     features = pd.read_csv(
-        "test_utils/test_data/HIGGS_test.csv",
+        "test_utils/test_data/test_samples.csv",
         dtype=np.float32,
         usecols=range(1, 29),
         header=None,
-    ).values
-    
-    forest, sklearn_model = parse_from_pickle()
-    bitvector_trees = []
-    for node in forest:
-        bitvector_trees.append(generate_BitvectorTree(node))
+    )
 
-    for i, feature in enumerate(features):
-        prediction1 = quickscorer_without_sorting(bitvector_trees, feature)
-        prediction2 = int(sklearn_model.predict(np.expand_dims(feature, 0)))
-        print(f"Test{i}: Predition1 {prediction1}, Prediction2 {prediction2}")
-        assert prediction1 == prediction2
+    for feature in features:
+        prediction1 = quickscorer(forest, feature)
+        prediction2 = int(sklearn_model.predict())
+        assert (
+            prediction1 == prediction2
+        ), f"Prediction from our implementation is {prediction1} and prediction from sklearn model is {prediction2}"
 
 
 if __name__ == "__main__":
-    bit_test()
+    test()
